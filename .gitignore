@@ -1,0 +1,11 @@
+documentos
+
+backend/.idea
+backend/.venv
+__pycache__/
+*.py[cod]
+.dev/
+
+frontend/node_modules
+
+.env

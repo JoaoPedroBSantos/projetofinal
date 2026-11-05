@@ -1,0 +1,26 @@
+# Frontend das Delícias Gourmet: build do SPA (Vite) servido pelo nginx.
+#
+#   podman build -t localhost/delicias-gourmet-web ./frontend
+#   podman run --rm -p 8080:80 localhost/delicias-gourmet-web
+#
+# O nginx serve o SPA e faz proxy de /api e /assets para a API (serviço "api").
+# Build stage. A API (FastAPI) fica no serviço "api"; aqui só buildamos o SPA.
+FROM docker.io/library/node:22-bookworm-slim AS build
+WORKDIR /app
+
+# Sem package-lock.json ainda, então npm install (não npm ci).
+COPY package.json ./
+RUN npm install --no-audit --no-fund
+
+COPY . .
+RUN npm run build
+
+# Runtime stage: nginx serve o SPA e faz proxy de /api + /assets para a API.
+FROM docker.io/library/nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/default.conf.template
+COPY docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

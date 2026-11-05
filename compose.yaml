@@ -1,0 +1,133 @@
+# Delícias Gourmet - stack completa (site + API + banco + storage de objetos).
+#
+#   podman compose up -d --build --force-recreate  # sobe tudo
+#   podman compose ps                             # status
+#   podman compose logs -f api                    # logs da API
+#   podman compose down                           # derruba (os volumes de dados sobrevivem)
+#
+# O --force-recreate é necessário no podman-compose: depois de um build ele
+# não percebe que a imagem mudou e mantém o container antigo no ar.
+#
+# Sites/UI expostos no host:
+#   http://localhost:8080        site (nginx) e painel /admin
+#   http://localhost:8081        API direta (mesma porta que o proxy do vite em dev)
+#   http://localhost:8333        API S3 do SeaweedFS
+#   http://localhost:8888        UI do filer (SeaweedFS)
+#   http://localhost:9333        UI do master (SeaweedFS)
+#   localhost:5432               PostgreSQL
+name: delicias-gourmet
+
+services:
+  # ---------------------------------------------------------------- site (nginx + SPA)
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Containerfile
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- API (FastAPI)
+  api:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+    ports:
+      # 8081 no host: é a porta que o proxy do vite (frontend/vite.config.js) usa.
+      - "${API_PORT:-8081}:8080"
+    environment:
+      # Banco (PostgreSQL).
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-delicias}:${POSTGRES_PASSWORD:-delicias_dev_pwd}@postgres:5432/${POSTGRES_DB:-delicias}"
+      DATABASE_POOL_SIZE: "5"
+      # Catálogo de exemplo (produtos/adicionais). Desligado: banco vazio.
+      SEED_DEMO_DATA: "${SEED_DEMO_DATA:-false}"
+      # Storage de objetos (SeaweedFS, API S3).
+      S3_ENDPOINT: "http://seaweedfs:8333"
+      S3_REGION: "us-east-1"
+      S3_ACCESS_KEY: "${S3_ACCESS_KEY:-delicias}"
+      S3_SECRET_KEY: "${S3_SECRET_KEY:-delicias_dev_secret_key}"
+      S3_BUCKET: "${S3_BUCKET:-produtos}"
+      # SeaweedFS fala S3 com endereçamento por caminho (path-style).
+      S3_FORCE_PATH_STYLE: "true"
+      # Administrador único do painel (troque no .env antes de publicar).
+      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-1234}"
+      # Assina o cookie de sessão do painel.
+      SECRET_KEY: "${SECRET_KEY:-delicias_dev_secret_change_me}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      TZ: "America/Sao_Paulo"
+    # O mesmo check do Containerfile, declarado aqui para o compose aplicar
+    # (o healthcheck da imagem não é herdado por todas as ferramentas).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/ready', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      # O startup espera o Postgres e aplica as migrações antes de ficar pronto.
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- banco (PostgreSQL)
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-delicias}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-delicias_dev_pwd}"
+      POSTGRES_DB: "${POSTGRES_DB:-delicias}"
+      TZ: "America/Sao_Paulo"
+      PGTZ: "America/Sao_Paulo"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-delicias} -d ${POSTGRES_DB:-delicias}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- storage de objetos (SeaweedFS)
+  # `weed server -s3` sobe master + volume + filer + gateway S3 em um container só.
+  seaweedfs:
+    image: docker.io/chrislusf/seaweedfs:4.22
+    command:
+      - server
+      - -dir=/data
+      - -ip.bind=0.0.0.0
+      - -s3
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -master.volumeSizeLimitMB=1024
+      - -volume.max=10
+    ports:
+      - "${S3_PORT:-8333}:8333"   # API S3
+      - "${FILER_PORT:-8888}:8888" # UI do filer
+      - "${MASTER_PORT:-9333}:9333" # UI do master
+      - "${VOLUME_PORT:-8085}:8080" # volume server (8085 porque 8080 é o site)
+    volumes:
+      - seaweedfs_data:/data
+      # :z é necessário para o Podman rootless (sem ele o container não consegue
+      # ler o arquivo e o SeaweedFS entra em loop de restart). No Docker é ignorado.
+      - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro,z
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9333/cluster/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # A eleição de leader do master leva ~20 s: dá tempo antes de contar
+      # falha de healthcheck.
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  seaweedfs_data:

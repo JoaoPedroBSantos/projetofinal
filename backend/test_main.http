@@ -1,0 +1,181 @@
+# Exemplos de requisições da API (REST Client do VS Code / JetBrains HTTP Client).
+# Suba a API localmente, por exemplo:
+#   cd backend && uvicorn main:app --reload --port 8081
+# Ou use a stack completa: http://localhost:8081
+@base = http://127.0.0.1:8081
+
+### Saúde (API + banco + storage)
+GET {{base}}/api/health
+
+### Cardápio público
+GET {{base}}/api/products
+
+### Horário de funcionamento público
+GET {{base}}/api/business-hours
+
+### Login do painel (guarda o cookie de sessão)
+POST {{base}}/api/admin/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "1234"
+}
+
+### Usuário logado
+GET {{base}}/api/admin/me
+
+### Horários (0 = domingo ... 6 = sábado)
+GET {{base}}/api/admin/days
+
+### Fecha a segunda-feira
+PUT {{base}}/api/admin/days/1
+Content-Type: application/json
+
+{
+  "open": false
+}
+
+### Reabre a segunda-feira das 18:00 às 23:00
+PUT {{base}}/api/admin/hours/1
+Content-Type: application/json
+
+{
+  "open": true,
+  "opens_at": "18:00",
+  "closes_at": "23:00"
+}
+
+### Produtos no painel (inclui custo, estoque e estatísticas)
+GET {{base}}/api/admin/products
+
+### Cria produto (a imagem deve ter sido enviada antes em /api/admin/uploads)
+POST {{base}}/api/admin/products
+Content-Type: application/json
+
+{
+  "name": "Produto de teste",
+  "category": "doces",
+  "price_cents": 1500,
+  "cost_cents": 500,
+  "stock": 10,
+  "available": true,
+  "addonIds": [1, 2],
+  "image": "uploads/exemplo.jpg",
+  "description": "Exemplo de descrição",
+  "featured": false
+}
+
+### Atualiza produto
+PUT {{base}}/api/admin/products/1
+Content-Type: application/json
+
+{
+  "name": "Produto atualizado",
+  "category": "doces",
+  "price_cents": 1800,
+  "cost_cents": 600,
+  "stock": 5,
+  "available": true,
+  "addonIds": [1],
+  "image": "uploads/exemplo.jpg"
+}
+
+### Disponibilidade / estoque
+PATCH {{base}}/api/admin/products/1
+Content-Type: application/json
+
+{
+  "available": false,
+  "stock": 0
+}
+
+### Exclui produto
+DELETE {{base}}/api/admin/products/1
+
+### Adicionais
+GET {{base}}/api/admin/addons
+
+### Cria adicional
+POST {{base}}/api/admin/addons
+Content-Type: application/json
+
+{
+  "name": "Bacon",
+  "price_cents": 300
+}
+
+### Atualiza preço do adicional
+PATCH {{base}}/api/admin/addons/1
+Content-Type: application/json
+
+{
+  "price_cents": 350
+}
+
+### Exclui adicional
+DELETE {{base}}/api/admin/addons/1
+
+### Cria pedido (público)
+POST {{base}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": {
+    "name": "Ana",
+    "phone": "(45) 99999-9999"
+  },
+  "items": [
+    {
+      "productId": 1,
+      "qty": 2,
+      "addonIds": [1],
+      "note": "sem cebola"
+    }
+  ]
+}
+
+### Cria pedido agendado (público)
+# `delivery_at` sem fuso é interpretado no fuso da loja (America/Sao_Paulo).
+POST {{base}}/api/orders
+Content-Type: application/json
+
+{
+  "customer": {
+    "name": "Ana",
+    "phone": "(45) 99999-9999"
+  },
+  "items": [
+    {
+      "productId": 1,
+      "qty": 2,
+      "addonIds": [1],
+      "note": "sem cebola"
+    }
+  ],
+  "delivery_type": "retirada",
+  "delivery_at": "2030-01-07T19:30:00"
+}
+
+### Pedidos no painel (open | done | canceled)
+GET {{base}}/api/admin/orders?status=open
+
+### Muda o status do pedido
+PATCH {{base}}/api/admin/orders/1
+Content-Type: application/json
+
+{
+  "status": "concluido"
+}
+
+### Dados para exportação de vendas
+GET {{base}}/api/admin/sales
+
+### Upload de foto (envie o binário da imagem; JPG, PNG ou WebP, até 6 MB)
+POST {{base}}/api/admin/uploads
+Content-Type: image/jpeg
+
+< ./foto.jpg
+
+### Logout
+POST {{base}}/api/admin/logout

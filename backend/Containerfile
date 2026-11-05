@@ -1,0 +1,37 @@
+# API das Delícias Gourmet (FastAPI + uvicorn).
+#
+#   podman build -t localhost/delicias-gourmet-api ./backend
+#   podman run --rm -p 8080:8080 localhost/delicias-gourmet-api
+#
+# A porta 8080 é a mesma que o nginx do frontend usa no proxy (/api e /assets).
+FROM docker.io/library/python:3.14-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Dependências primeiro: a camada do pip só é invalidada quando o arquivo muda.
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app ./app
+COPY main.py ./
+# Schema versionado: o startup aplica as migrações pendentes (app/bootstrap.py).
+COPY alembic.ini ./
+COPY migrations ./migrations
+
+# Roda sem root: a API não precisa de nenhum privilégio.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin api
+USER api
+
+EXPOSE 8080
+
+# Sem curl na imagem: o próprio Python faz o check. /api/ready só responde 200
+# quando o banco está acessível E o schema existe.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/ready', timeout=3).read()"]
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]

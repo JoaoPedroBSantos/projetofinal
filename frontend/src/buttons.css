@@ -1,0 +1,59 @@
+/* Animações de botões (site e painel). Usa as propriedades independentes `translate` e `scale`
+   para não conflitar com `transform` já usado em alguns componentes (ex.: setas do carrossel). */
+button, a.button, .button {
+  transition: translate .18s cubic-bezier(.2,.8,.2,1), scale .12s ease-out, filter .18s ease, background-color .18s ease, color .18s ease, border-color .18s ease;
+}
+button:not(:disabled):hover, a.button:hover {
+  translate: 0 -2px;
+  filter: brightness(1.07) drop-shadow(0 4px 5px rgba(40,10,10,.28));
+}
+button:not(:disabled):active, a.button:active {
+  translate: 0 0;
+  scale: .94;
+  filter: brightness(.94);
+  transition-duration: .06s;
+}
+
+/* Grupos de botões unidos, cabeçalhos de tabela e menus: sem "levantar", só brilho e clique */
+.seg button:not(:disabled):hover, .sheet thead button:hover, .bar nav button:hover {
+  translate: none; filter: brightness(1.08);
+}
+
+/* Botões que são só texto/ícone ou linhas inteiras: sem sombra nem elevação */
+.link:hover:not(:disabled), .link-btn:hover:not(:disabled), .nav-link:hover:not(:disabled), .sp-toggle:hover:not(:disabled), .close:hover:not(:disabled), .order-main:hover:not(:disabled) {
+  translate: none; filter: brightness(1.25);
+}
+.order-main:hover:not(:disabled) { filter: none; }
+.order-main:active:not(:disabled) { scale: .99; filter: none; }
+
+/* Menus: sublinhado que cresce ao passar o mouse */
+header nav a, header nav .nav-link, .bar nav button {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 2px no-repeat;
+  transition: background-size .25s ease;
+}
+header nav a:hover, header nav .nav-link:hover, .bar nav button:hover { background-size: 100% 2px; }
+
+/* Ícones dentro de botões */
+.round-add b { display: inline-block; transition: rotate .25s cubic-bezier(.2,.8,.2,1); }
+.round-add:hover b { rotate: 90deg; }
+.icon-btn:hover:not(:disabled) { filter: none; translate: none; }
+.close:hover { rotate: 90deg; }
+.close { transition: rotate .25s cubic-bezier(.2,.8,.2,1), scale .12s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  button, a.button, .button, header nav a, header nav .nav-link, .bar nav button, .round-add b, .close { transition: none; }
+  button:not(:disabled):hover, a.button:hover, button:not(:disabled):active, a.button:active,
+  .round-add:hover b, .close:hover { translate: none; scale: none; rotate: none; }
+}
+
+/* Horários de atendimento (popup do site e lista do painel) */
+.hours { list-style:none; margin:14px 0 0; padding:0; display:grid; gap:6px; }
+.hours li { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 14px; padding:9px 12px; background:#fff; border-radius:8px; }
+.hours li > span:first-child { flex:1 1 140px; font-weight:700; }
+.hours-time { color:#6b5a52; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.hours li.closed .hours-time { color:#a01010; }
+.hours li.today { outline:2px solid var(--dourado); outline-offset:-2px; }
+.today-tag { margin-left:8px; padding:1px 7px; border-radius:10px; background:var(--dourado); color:#35100e; font-size:11px; font-style:normal; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+.hours-form { display:grid; gap:14px; }
+.time-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.time-grid label { display:grid; gap:4px; font-size:13px; font-weight:700; color:#5a4a43; }

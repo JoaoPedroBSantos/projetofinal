@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "delicias",
+      "credentials": [
+        {
+          "accessKey": "delicias",
+          "secretKey": "delicias_dev_secret_key"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Migrações do banco
+
+O schema é gerenciado pelo Alembic e aplicado automaticamente no startup da API
+(`app/bootstrap.py`).
+
+```bash
+cd backend
+. .venv/bin/activate
+export DATABASE_URL=postgresql://delicias:delicias_dev_pwd@127.0.0.1:5432/delicias
+alembic current
+alembic upgrade head
+alembic revision --autogenerate -m "descrição da mudança"
+```
+
+Banco antigo criado por `create_all` (sem `alembic_version`) é adotado como
+baseline automaticamente no próximo startup.

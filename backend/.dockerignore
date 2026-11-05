@@ -1,0 +1,14 @@
+# Contexto de build da API: só o que a imagem precisa.
+.venv/
+.idea/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
+*.sqlite3
+.env
+*.md
